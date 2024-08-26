@@ -9,6 +9,7 @@ from io import BytesIO
 import google.generativeai as genai
 import random
 import anthropic
+import mimetypes
 
 dotenv.load_dotenv()
 
@@ -53,6 +54,8 @@ def messages_to_gemini(messages):
                 gemini_message["parts"].append(genai.upload_file(content["video_file"]))
             elif content["type"] == "audio_file":
                 gemini_message["parts"].append(genai.upload_file(content["audio_file"]))
+            elif content["type"] == "file":
+                gemini_message["parts"].append(content["file_content"])
 
         if prev_role != message["role"]:
             gemini_messages.append(gemini_message)
@@ -74,20 +77,28 @@ def messages_to_anthropic(messages):
                 "role": message["role"] ,
                 "content": [],
             }
-        if message["content"][0]["type"] == "image_url":
-            anthropic_message["content"].append(
-                {
-                    "type": "image",
-                    "source":{   
-                        "type": "base64",
-                        "media_type": message["content"][0]["image_url"]["url"].split(";")[0].split(":")[1],
-                        "data": message["content"][0]["image_url"]["url"].split(",")[1]
-                        # f"data:{img_type};base64,{img}"
+        
+        for content in message["content"]:
+            if content["type"] == "image_url":
+                anthropic_message["content"].append(
+                    {
+                        "type": "image",
+                        "source":{   
+                            "type": "base64",
+                            "media_type": content["image_url"]["url"].split(";")[0].split(":")[1],
+                            "data": content["image_url"]["url"].split(",")[1]
+                        }
                     }
-                }
-            )
-        else:
-            anthropic_message["content"].append(message["content"][0])
+                )
+            elif content["type"] == "file":
+                anthropic_message["content"].append(
+                    {
+                        "type": "text",
+                        "text": f"File content:\n\n{content['file_content']}"
+                    }
+                )
+            else:
+                anthropic_message["content"].append(content)
 
         if prev_role != message["role"]:
             anthropic_messages.append(anthropic_message)
@@ -230,6 +241,10 @@ def main():
                         st.video(content["video_file"])
                     elif content["type"] == "audio_file":
                         st.audio(content["audio_file"])
+                    elif content["type"] == "file":
+                        st.text(f"File: {content['file_name']} ({content['file_type']})")
+                        with st.expander("View file content"):
+                            st.code(content['file_content'], language=content['file_type'].split('/')[-1])
 
         # Side bar model options and inputs
         with st.sidebar:
@@ -326,6 +341,35 @@ def main():
                                 key="camera_img",
                                 on_change=add_image_to_messages,
                             )
+
+            # File Upload
+            st.write("### **📄 Add a file:**")
+            
+            def add_file_to_messages():
+                if st.session_state.uploaded_file:
+                    file = st.session_state.uploaded_file
+                    file_content = file.getvalue().decode("utf-8")
+                    mime_type, _ = mimetypes.guess_type(file.name)
+                    
+                    st.session_state.messages.append(
+                        {
+                            "role": "user", 
+                            "content": [{
+                                "type": "file",
+                                "file_name": file.name,
+                                "file_type": mime_type or "text/plain",
+                                "file_content": file_content
+                            }]
+                        }
+                    )
+
+            st.file_uploader(
+                "Upload a file:", 
+                type=None,  # Allow all file types
+                accept_multiple_files=False,
+                key="uploaded_file",
+                on_change=add_file_to_messages,
+            )
 
             # Audio Upload
             st.write("#")
