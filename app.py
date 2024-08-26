@@ -187,8 +187,18 @@ def base64_to_image(base64_string):
     return Image.open(BytesIO(base64.b64decode(base64_string)))
 
 def save_conversation(messages, filename):
-    with open(filename, 'w') as f:
+    # Ensure the 'conversations' directory exists
+    os.makedirs('conversations', exist_ok=True)
+    filepath = os.path.join('conversations', filename)
+    with open(filepath, 'w') as f:
         json.dump(messages, f)
+
+def load_conversation(filename):
+    filepath = os.path.join('conversations', filename)
+    if os.path.exists(filepath):
+        with open(filepath, 'r') as f:
+            return json.load(f)
+    return []
 
 def load_conversation(filename):
     if os.path.exists(filename):
