@@ -10,9 +10,6 @@ import google.generativeai as genai
 import random
 import anthropic
 import mimetypes
-import json
-import os
-from datetime import datetime
 
 dotenv.load_dotenv()
 
@@ -186,15 +183,7 @@ def base64_to_image(base64_string):
     
     return Image.open(BytesIO(base64.b64decode(base64_string)))
 
-def save_conversation(messages, filename):
-    with open(filename, 'w') as f:
-        json.dump(messages, f)
 
-def load_conversation(filename):
-    if os.path.exists(filename):
-        with open(filename, 'r') as f:
-            return json.load(f)
-    return []
 
 def main():
 
@@ -239,9 +228,6 @@ def main():
 
         if "messages" not in st.session_state:
             st.session_state.messages = []
-
-        if "conversations" not in st.session_state:
-            st.session_state.conversations = {}
 
         # Displaying the previous messages if there are any
         for message in st.session_state.messages:
@@ -424,37 +410,6 @@ def main():
                     audio_file_added = True
 
             
-
-            st.divider()
-            st.write("### **💾 Save/Load Conversation:**")
-            
-            # Save conversation
-            conversation_name = st.text_input("Enter a name for this conversation:")
-            if st.button("Save Conversation"):
-                if conversation_name:
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    filename = f"conversation_{conversation_name}_{timestamp}.json"
-                    save_conversation(st.session_state.messages, filename)
-                    st.session_state.conversations[conversation_name] = filename
-                    st.success(f"Conversation saved as {filename}")
-                else:
-                    st.warning("Please enter a name for the conversation.")
-
-            # Load conversation
-            if st.session_state.conversations:
-                selected_conversation = st.selectbox("Select a conversation to load:", 
-                                                     list(st.session_state.conversations.keys()))
-                if st.button("Load Conversation"):
-                    filename = st.session_state.conversations[selected_conversation]
-                    st.session_state.messages = load_conversation(filename)
-                    st.success(f"Loaded conversation: {selected_conversation}")
-            else:
-                st.info("No saved conversations available.")
-
-            # Reset conversation
-            if st.button("Start New Conversation"):
-                st.session_state.messages = []
-                st.success("Started a new conversation.")
 
         # Chat input
         if prompt := st.chat_input("Hi! Ask me anything...") or audio_prompt or audio_file_added:
